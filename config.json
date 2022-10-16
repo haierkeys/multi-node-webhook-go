@@ -15,11 +15,15 @@
       "commands": [
         {
           "id": "master",
-          "command": "docker_redeploy.sh"
+          "command": "ls",
+          "display": true,
+          "parm_bind": "{\"-a=\":\"\\\"tag\\\":\\\"([a-z0-9.-]+)\\\"\"}"
         },
         {
           "id": "node1",
-          "command": "docker_redeploy.sh"
+          "command": "docker_redeploy.sh",
+          "display": true,
+          "parm_bind": "{\"var\":[\"push_data\",\"tag\"]}"
         }
       ]
     }

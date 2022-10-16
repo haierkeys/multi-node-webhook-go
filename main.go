@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"github.com/haierspi/multi-node-webhook-go/pkg/httpclient"
 	"github.com/pkg/errors"
 	"io"
@@ -12,24 +14,43 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 )
 
 type Command struct {
-	Id      string `json:"id"`
-	Command string `json:"command"`
+	Id       string `json:"id"`
+	Command  string `json:"command"`
+	Display  bool   `json:"display"`
+	ParmBind string `json:"parm_bind"`
 }
 
-func (c *Command) run() (string, error) {
-	script := "./" + c.Command
-	out, err := exec.Command("bash", "-c", script).Output()
-	if err != nil {
-		log.Printf("Exec command failed: %s\n", err)
-		return "", err
+func (c *Command) run(parms []string) (string, error) {
+	ext := filepath.Ext(c.Command)
+	var script string
+	if ext != "" && strings.ToLower(ext) == ".sh" && c.Command[0:1] != "/" {
+		script = "./" + c.Command
+	} else {
+		script = c.Command
 	}
-	return string(out), nil
+	if len(parms) > 0 {
+		script += " " + strings.Join(parms, " ")
+	}
+	cmdd := []string{"bash", "-c", script}
+	cmd := exec.Command(cmdd[0], cmdd[1:]...)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		return "", errors.Wrap(err, strings.Join(cmdd, " ")+":\n\t"+stderr.String())
+	}
+	return strings.Join(cmdd, " ") + ":\n" + out.String(), nil
 }
 func (c *Command) Node() *Node {
 	return Cfg.node(c.Id)
@@ -45,25 +66,64 @@ type Node struct {
 	Host string `json:"host"`
 }
 
-func (n *Node) call(id string, key string, post string) (string, error) {
+func (n *Node) call(command Command, key string, pushChan chan Msg, post []byte) {
 	defer wg.Done()
 
-	posturl := "http://" + n.Host + "/" + key + "?node=1"
+	if command.Id == Id {
 
-	c, err := httpclient.Post(posturl, post)
+		parmBind := make(map[string]string)
+		parms := []string{}
 
-	if err != nil {
-		log.Printf("Hook ["+key+"]["+id+"] run fail:\n%v\n", err)
-		return "", err
-	} else {
-		if c != "" {
-			log.Printf("Hook ["+key+"]["+id+"] run ok:\n%v\n", c)
-		} else {
-			log.Printf("Hook [" + key + "][" + id + "] run ok!")
+		if command.ParmBind != "" {
+			json.Unmarshal([]byte(command.ParmBind), &parmBind)
+			for n, grep := range parmBind {
+
+				myRegex, _ := regexp.Compile(grep)
+				match := myRegex.FindStringSubmatch(string(post))
+				if len(match) >= 2 {
+					parms = append(parms, n+match[1])
+				}
+			}
 		}
+		c, err := command.run(parms)
+		if err != nil {
+			pushChan <- Msg{
+				Err:     err,
+				RunOut:  "",
+				Name:    "Hook [" + key + "][" + command.Id + "]",
+				Command: command,
+			}
+			return
+		} else {
+			pushChan <- Msg{
+				Err:     nil,
+				RunOut:  c,
+				Name:    "Hook [" + key + "][" + command.Id + "]",
+				Command: command,
+			}
+		}
+	} else {
+		posturl := "http://" + n.Host + "/" + key + "?node=1"
+		c, err := httpclient.Post(posturl, string(post))
 
+		if err != nil {
+			pushChan <- Msg{
+				Err:     err,
+				RunOut:  "",
+				Name:    "Hook [" + key + "][" + command.Id + "]",
+				Command: command,
+			}
+			return
+		} else {
+			pushChan <- Msg{
+				Err:     err,
+				RunOut:  c,
+				Name:    "Hook [" + key + "][" + command.Id + "]",
+				Command: command,
+			}
+		}
+		return
 	}
-	return c, nil
 }
 
 type Config struct {
@@ -91,6 +151,13 @@ func (c *Config) hook(key string) *Hook {
 	return nil
 }
 
+type Msg struct {
+	Err     error
+	RunOut  string
+	Name    string
+	Command Command
+}
+
 var Id string
 var Host string
 var Cfg *Config
@@ -101,6 +168,7 @@ var wg sync.WaitGroup
 func handle() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
+		var pushChan = make(chan Msg, 10)
 
 		reqNodeKey := r.URL.Path[1:]
 		isReqNode := r.URL.Query().Get("node") != ""
@@ -115,28 +183,44 @@ func handle() http.HandlerFunc {
 
 		for _, command := range reqHook.Commands {
 			if command.Id == Id {
-				c, err := command.run()
-				if err != nil {
-					w.Write([]byte("failed\n"))
-					return
-				} else {
-					if c != "" {
-						w.Write([]byte("Hook [" + reqNodeKey + "][" + command.Id + "] run ok!\n"))
-						log.Printf("Hook ["+reqNodeKey+"]["+command.Id+"] run ok:\n%v\n", c)
-					} else {
-						w.Write([]byte("Hook [" + reqNodeKey + "][" + command.Id + "] run ok!\n"))
-						log.Printf("Hook [" + reqNodeKey + "][" + command.Id + "] run ok!\n")
-					}
-				}
+				wg.Add(1)
+				go command.Node().call(command, reqNodeKey, pushChan, reqBody)
 			} else if !isReqNode {
 				wg.Add(1)
-				go command.Node().call(command.Id, reqNodeKey, string(reqBody))
+				go command.Node().call(command, reqNodeKey, pushChan, reqBody)
 			}
-
 		}
 
-		wg.Wait()
-		w.Write([]byte("success\n"))
+		go func() {
+			wg.Wait()
+			close(pushChan)
+		}()
+
+		for msg := range pushChan {
+			if msg.Err != nil {
+				log.Printf(msg.Name+" run fail:\n%v\n", msg.Err)
+				if msg.Command.Display && msg.Err != nil {
+					w.Write([]byte(fmt.Sprintf(msg.Name+" run fail:\n%v\n", msg.Err)))
+				} else {
+					w.Write([]byte(msg.Name + " run fail!\n"))
+				}
+
+			} else {
+				if msg.RunOut != "" {
+					log.Printf(msg.Name+" run ok:\n%v\n", msg.RunOut)
+				} else {
+					log.Printf(msg.Name + " run ok!\n")
+				}
+				if msg.Command.Display && msg.RunOut != "" {
+					w.Write([]byte(fmt.Sprintf(msg.Name+" run ok:\n%v\n", msg.RunOut)))
+				} else {
+					w.Write([]byte(msg.Name + " run ok!\n"))
+				}
+			}
+		}
+		if !isReqNode {
+			w.Write([]byte("success\n"))
+		}
 	}
 }
 
@@ -224,5 +308,3 @@ func cfgRead() error {
 	return nil
 
 }
-
-// --------------------------------------------------------------------------------
