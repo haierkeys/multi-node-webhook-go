@@ -6,7 +6,7 @@
     },
     {
       "id": "node1",
-      "host": "192.168.16.1:8888"
+      "host": "127.0.0.1:6666"
     }
   ],
   "hooks": [
@@ -21,9 +21,9 @@
         },
         {
           "id": "node1",
-          "command": "docker_redeploy.sh",
+          "command": "ls",
           "display": true,
-          "parm_bind": "{\"var\":[\"push_data\",\"tag\"]}"
+          "parm_bind": "{\"-a=\":\"\\\"tag\\\":\\\"([a-z0-9.-]+)\\\"\"}"
         }
       ]
     }
