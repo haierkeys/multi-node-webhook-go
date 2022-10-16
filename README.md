@@ -16,7 +16,7 @@ CI/CD 打包docker镜像后,推送到`阿里云`镜像仓库\
 一. 启动 Run
 ---
 
-* 启动参数
++ 启动参数
   | 参数  | 参数说明      | 必选    |
   |:-----|:-------------|:-------|
   | -c  | 配置文件路径 [缩写] | 是  |
@@ -25,12 +25,12 @@ CI/CD 打包docker镜像后,推送到`阿里云`镜像仓库\
   | -id | 当前服务器的唯一ID | 是 |
 
 
-- 源码启动:
++ 源码启动:
     ```
     go run webhook.go -id master -c config.json
     ```
 
-- 执行程序启动 (目前支持linux 和 windows)
++ 执行程序启动 (目前支持linux 和 windows)
     ```
     multi-node-webhook -id master -c config.json
     ```
