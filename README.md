@@ -2,7 +2,7 @@ Golang Multi-node Webhook Tools
 ===
 >multi-node-webhook 是 golang编写的多节点远程脚本/命令执行工具
 
-用于当请求通知到webhook来执行固定的脚本
+主要用于远程带参数的脚本自动化执行
 
 ### 使用场景示例 (CI/CD流程最后的更新代码/程序到服务器):
 
