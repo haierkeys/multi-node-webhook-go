@@ -9,8 +9,8 @@
 ### 使用场景示例:
 阿里云docker镜像仓库在接受镜像更新后,\
 通过`触发器`通知`multi-node-webhook`,\
-`multi-node-webhook`会解析参数,\
-并执行这些参数的节点服务器`shell`脚本或`bash`命令
+`multi-node-webhook`会解析POST参数,\
+传递参数并执行所有节点服务器`shell`脚本或`bash`命令
 
 
 
