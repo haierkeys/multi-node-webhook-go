@@ -1,0 +1,27 @@
+{
+  "nodes" :[
+    {
+      "id": "master",
+      "host": ":8888"
+    },
+    {
+      "id": "node1",
+      "host": "192.168.16.1:8888"
+    }
+  ],
+  "hooks": [
+    {
+      "key": "update",
+      "commands": [
+        {
+          "id": "master",
+          "command": "docker_redeploy.sh"
+        },
+        {
+          "id": "node1",
+          "command": "docker_redeploy.sh"
+        }
+      ]
+    }
+  ]
+}
