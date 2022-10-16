@@ -263,10 +263,10 @@ func main() {
 
 }
 func cfgFlag() error {
-	flag.StringVar(&Id, "id", "", "服务器启动ID")
-	flag.StringVar(&Host, "host", "", "服务器启动Host")
-	flag.StringVar(&cfgFile, "config", "", "配置路径 config path")
-	c := flag.String("c", "", "配置路径 config path")
+	flag.StringVar(&Id, "id", "", "当前服务器的唯一ID / id")
+	flag.StringVar(&Host, "host", "", "服务器启动Host / ip:port")
+	flag.StringVar(&cfgFile, "config", "", "配置文件路径 / config path")
+	c := flag.String("c", "", "配置文件路径 / config path")
 	flag.Parse()
 	if *c != "" {
 		cfgFile = *c
