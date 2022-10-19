@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/haierspi/multi-node-webhook-go/pkg/httpclient"
-	"github.com/pkg/errors"
 	"io"
 	"log"
 	"net/http"
@@ -20,6 +18,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/haierspi/multi-node-webhook-go/pkg/httpclient"
+	"github.com/pkg/errors"
 )
 
 type Command struct {
@@ -196,6 +197,8 @@ func handle() http.HandlerFunc {
 			close(pushChan)
 		}()
 
+		w.WriteHeader(http.StatusOK) // 403
+
 		for msg := range pushChan {
 			if msg.Err != nil {
 				log.Printf(msg.Name+" run fail:\n%v\n", msg.Err)
@@ -242,6 +245,10 @@ func main() {
 		Handler:        handle(),
 		MaxHeaderBytes: 1 << 20,
 	}
+
+	log.Printf("Multi Node Webhook Is Start !Hostrun ok!\n")
+	log.Printf("Host:" + Host + "\n")
+	log.Printf("Id:" + Id + "\n")
 
 	go func() {
 		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {

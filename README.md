@@ -1,8 +1,8 @@
-Golang Multi-node Webhook Tools
+Multi-node HTTP Endpoints Server (Multi-node Webhook Tools)
 ===
->multi-node-webhook 是 golang编写的多节点远程脚本/命令执行工具
+>multi-node-webhook 是 golang编写的多节点服务器脚本/命令执行工具
 
-主要用于远端服务器集群的通知脚本执行或代码程序更新部署操作
+主要用于服务器集群的脚本执行(代码更新,程序部署)操作
 
 ### multi-node-webhook 特点:
 1. 多节点执行,任意节点服务器都可以作为master服务器
@@ -98,3 +98,30 @@ CI/CD 打包docker镜像后,推送到`阿里云`镜像仓库\
       匹配`POST`内容`"tag":"tag1"`中的`tag1`并将最终拼接为执行命令`command -a=tag1`
      - *注意当 `hook`内没有定义`command`值则不会在对应的节点服务器执行,用于定义`webhook中心服务器`* 
 
+三.访问 Multi-Node-Webhook 并执行webhook
+---
+启动
+./multi-node-webhook -c config.json -id master
+访问URL
+> http://{ip}:{port}/{hookKey}?node=1
+
+- `ip`  服务器IP
+- `port`  服务器端口
+- `hookKey`  配置中hook脚本key
+- `node` 仅限`当前节点`执行,不执行集群更新
+
+四. 服务方式启动
+
+vim /lib/systemd/system/node-webhook.service
+```bash
+[Unit]
+Description=Multi-node HTTP Endpoints Server (Multi-node Webhook Tools)
+Documentation=https://github.com/haierspi/multi-node-webhook-go
+ConditionPathExists=/data/config.json 
+
+[Service]
+ExecStart=/data/multi-node-webhook -c /data/config.json -id master
+
+[Install]
+WantedBy=multi-user.target
+```

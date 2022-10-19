@@ -69,6 +69,5 @@ define init
 	@echo "Build Init"
 	mkdir -p $(buildDir)
 	@cp -rf $(cfgFile) $(buildDir)
-	find $(buildDir) -type f -name "*.go" | xargs rm
 endef
 # @cp -rf $(keystoreDir) $(buildDir)
